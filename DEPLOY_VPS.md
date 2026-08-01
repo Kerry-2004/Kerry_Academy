@@ -1,34 +1,41 @@
-# Déploiement sur VPS Hostinger (KVM 2)
+# Déploiement sur VPS Hostinger (KVM 2) — sous-domaine school.kerryht.com
 
-Tout tourne sur un seul serveur Ubuntu :
+Kerryht Academy est déployée sur le sous-domaine **`school.kerryht.com`** (le domaine
+principal `kerryht.com` reste votre portfolio). Tout tourne sur un seul serveur Ubuntu :
 
-- **Nginx** (reverse proxy + HTTPS + sert statiques/vidéos)
-- **Django + Gunicorn** (backend/API/admin) — `api.kerryht.com`
-- **Next.js** (frontend) — `kerryht.com`
+- **Nginx** — reverse proxy + HTTPS ; route tout sur `school.kerryht.com` :
+  - `/` → Next.js (frontend)
+  - `/api`, `/admin`, `/ckeditor5` → Django
+  - `/static`, `/media` (vidéos) → servis directement par Nginx (avec Range)
+- **Django + Gunicorn** (backend/API/admin)
+- **Next.js** (frontend)
 - **PostgreSQL** (base de données)
 - Les **vidéos** sont stockées sur le disque NVMe (100 Go) — parfait pour < 100 utilisateurs.
 
-> Remplacez partout `kerryht.com` par votre domaine, `deploy` par votre utilisateur Linux, et les mots de passe par les vôtres.
+> Remplacez `deploy` par votre utilisateur Linux et les mots de passe par les vôtres.
+> Comme tout est sur le même sous-domaine, l'authentification par cookie est simple
+> (même origine) et il n'y a pas de complications CORS.
 
 ---
 
-## 1. DNS chez Hostinger
+## 1. DNS — ajouter le sous-domaine
 
-Dans hPanel → **Domaines** → **Zone DNS**, créez 3 enregistrements `A` vers l'**IP de votre VPS** :
+Dans la zone DNS de `kerryht.com` (chez Hostinger : hPanel → **Domaines** → `kerryht.com`
+→ **DNS / Zone DNS**), ajoutez **un seul** enregistrement `A` vers l'**IP de votre VPS** :
 
 | Type | Nom | Valeur |
 |---|---|---|
-| `A` | `@` | IP_DU_VPS |
-| `A` | `www` | IP_DU_VPS |
-| `A` | `api` | IP_DU_VPS |
+| `A` | `school` | IP_DU_VPS |
 
-(La propagation prend quelques minutes à quelques heures.)
+> N'y touchez pas au reste : votre portfolio `kerryht.com` / `www` n'est pas affecté.
+> La propagation prend quelques minutes à quelques heures.
 
 ---
 
 ## 2. Préparer le serveur
 
-Connectez-vous en SSH (`ssh root@IP_DU_VPS`), puis créez un utilisateur non-root :
+Connectez-vous (terminal du navigateur Hostinger = le plus simple). Vous êtes `root`.
+Créez un utilisateur de travail :
 
 ```bash
 adduser deploy
@@ -75,7 +82,7 @@ GRANT ALL ON SCHEMA public TO kerryht;
 
 ```bash
 cd ~
-git clone https://github.com/<votre-user>/kerryht-academy.git
+git clone https://github.com/Kerry-2004/Kerry_Academy.git kerryht-academy
 cd kerryht-academy
 ```
 
@@ -96,16 +103,16 @@ Créez le fichier `backend/.env` :
 nano .env
 ```
 
-Contenu (adaptez les valeurs) :
+Contenu (adaptez le mot de passe DB et la clé secrète) :
 
 ```
 SECRET_KEY=REMPLACEZ_PAR_UNE_CLE_ALEATOIRE
 DEBUG=False
 DJANGO_SETTINGS_MODULE=config.settings.prod
-ALLOWED_HOSTS=api.kerryht.com
+ALLOWED_HOSTS=school.kerryht.com
 DATABASE_URL=postgres://kerryht:MOT_DE_PASSE_DB@localhost:5432/kerryht_academy
-CORS_ALLOWED_ORIGINS=https://kerryht.com,https://www.kerryht.com
-CSRF_TRUSTED_ORIGINS=https://kerryht.com,https://www.kerryht.com
+CORS_ALLOWED_ORIGINS=https://school.kerryht.com
+CSRF_TRUSTED_ORIGINS=https://school.kerryht.com
 REFRESH_COOKIE_SAMESITE=Lax
 ```
 
@@ -127,16 +134,14 @@ deactivate
 ```bash
 cd ~/kerryht-academy/frontend
 npm ci
-NEXT_PUBLIC_API_URL=https://api.kerryht.com npm run build
+NEXT_PUBLIC_API_URL=https://school.kerryht.com npm run build
 ```
 
-> `NEXT_PUBLIC_API_URL` est intégré **au moment du build** — il doit être présent sur cette commande. Après un changement, il faut rebuild.
+> `NEXT_PUBLIC_API_URL` est intégré **au moment du build**. Après un changement, rebuild.
 
 ---
 
 ## 7. Services systemd (démarrage auto + redémarrage)
-
-Copiez les fichiers fournis (dossier `deploy/`), en adaptant l'utilisateur/chemins si besoin :
 
 ```bash
 sudo cp ~/kerryht-academy/deploy/kerryht-backend.service /etc/systemd/system/
@@ -146,7 +151,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now kerryht-backend
 sudo systemctl enable --now kerryht-frontend
 
-# Vérifier
 sudo systemctl status kerryht-backend
 sudo systemctl status kerryht-frontend
 ```
@@ -155,7 +159,7 @@ sudo systemctl status kerryht-frontend
 
 ## 8. Nginx
 
-Autorisez Nginx (www-data) à lire les fichiers du projet :
+Autorisez Nginx (www-data) à traverser le dossier personnel :
 
 ```bash
 chmod 755 /home/deploy
@@ -166,12 +170,12 @@ Installez la configuration :
 ```bash
 sudo cp ~/kerryht-academy/deploy/nginx-kerryht.conf /etc/nginx/sites-available/kerryht
 sudo ln -s /etc/nginx/sites-available/kerryht /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default   # retire la page par défaut
-sudo nginx -t        # tester la config
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-À ce stade, `http://kerryht.com` et `http://api.kerryht.com` doivent répondre.
+À ce stade, `http://school.kerryht.com` doit répondre (une fois le DNS propagé).
 
 ---
 
@@ -179,18 +183,18 @@ sudo systemctl reload nginx
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d kerryht.com -d www.kerryht.com -d api.kerryht.com
+sudo certbot --nginx -d school.kerryht.com
 ```
 
-Certbot obtient les certificats, ajoute les blocs HTTPS et la redirection HTTP→HTTPS automatiquement. Le renouvellement est automatique.
+Certbot obtient le certificat, ajoute le HTTPS et la redirection HTTP→HTTPS. Renouvellement automatique.
 
 ---
 
 ## 10. Vérification
 
-- [ ] `https://kerryht.com` → l'accueil s'affiche.
-- [ ] `https://api.kerryht.com/admin/` → connexion admin OK.
-- [ ] Inscription d'un étudiant depuis le site → connexion → tableau de bord.
+- [ ] `https://school.kerryht.com` → l'accueil s'affiche.
+- [ ] `https://school.kerryht.com/admin/` → connexion admin OK.
+- [ ] Inscription d'un étudiant → connexion → tableau de bord.
 - [ ] Une formation créée dans l'admin apparaît sur `/courses`.
 - [ ] Upload d'une vidéo dans l'admin → lecture ET avance/recul fonctionnent.
 
@@ -213,7 +217,7 @@ sudo systemctl restart kerryht-backend
 # Frontend
 cd ../frontend
 npm ci
-NEXT_PUBLIC_API_URL=https://api.kerryht.com npm run build
+NEXT_PUBLIC_API_URL=https://school.kerryht.com npm run build
 sudo systemctl restart kerryht-frontend
 ```
 
@@ -221,6 +225,5 @@ sudo systemctl restart kerryht-frontend
 
 ## Notes
 
-- **Sauvegardes** : votre plan inclut 1 snapshot. Pensez aussi à sauvegarder la base : `pg_dump kerryht_academy > backup.sql`. Les vidéos sont dans `backend/media/`.
-- **Sécurité serveur** : activez le pare-feu (`sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable`).
-- **Gros uploads vidéo** : `client_max_body_size 1024M` est déjà réglé dans la config Nginx (upload jusqu'à ~1 Go via l'admin).
+- **Sauvegardes** : `pg_dump kerryht_academy > backup.sql` pour la base ; les vidéos sont dans `backend/media/` ; le snapshot Hostinger couvre tout le disque.
+- **Pare-feu** : `sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable`.
