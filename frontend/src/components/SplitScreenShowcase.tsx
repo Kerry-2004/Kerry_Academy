@@ -19,19 +19,32 @@ export default function SplitScreenShowcase({
   videoSrc?: string;
 }) {
   const [open, setOpen] = useState(false);
+  // Le poster peut être une image locale (/images/…) OU une URL du backend
+  // (https://…/media/…). next/image exige une config de domaine pour les URL
+  // distantes ; on utilise donc un <img> simple dans ce cas.
+  const isRemotePoster = /^https?:\/\//.test(posterSrc);
 
   return (
     <>
       <div className="relative overflow-hidden rounded-[2rem] bg-[#141414] shadow-2xl shadow-black/50">
         <div className="grid grid-cols-2">
           <div className="relative aspect-[4/5] sm:aspect-square">
-            <Image
-              src={posterSrc}
-              alt="Formateur Kerryht Academy"
-              fill
-              priority
-              className="object-cover object-top"
-            />
+            {isRemotePoster ? (
+              // eslint-disable-next-line @next/next/no-img-element -- upload backend, hors optimiseur d'images
+              <img
+                src={posterSrc}
+                alt="Formateur Kerryht Academy"
+                className="absolute inset-0 h-full w-full object-cover object-top"
+              />
+            ) : (
+              <Image
+                src={posterSrc}
+                alt="Formateur Kerryht Academy"
+                fill
+                priority
+                className="object-cover object-top"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-black/30" />
             <span className="absolute left-3 top-3 rounded-full border border-white/60 bg-black/60 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur sm:left-5 sm:top-5">
               Formateur

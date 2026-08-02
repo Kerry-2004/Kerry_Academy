@@ -32,6 +32,22 @@ def is_lesson_locked(enrollment, course, lesson):
     ).exists()
 
 
+def maybe_mark_course_completed(enrollment, course):
+    """Passe l'inscription en « Terminée » dès que toutes les leçons du cours
+    sont complétées — ce qui débloque le droit de laisser un avis."""
+    ordered = get_ordered_lessons(course)
+    if not ordered:
+        return
+    completed = Progress.objects.filter(
+        enrollment=enrollment,
+        lesson__in=[l.id for l in ordered],
+        completed_at__isnull=False,
+    ).count()
+    if completed >= len(ordered) and enrollment.status != Enrollment.Status.COMPLETED:
+        enrollment.status = Enrollment.Status.COMPLETED
+        enrollment.save(update_fields=["status"])
+
+
 class MyEnrollmentsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = EnrollmentSerializer
@@ -164,6 +180,8 @@ class CompleteLessonView(APIView):
         progress.completed_at = timezone.now()
         progress.save()
 
+        maybe_mark_course_completed(enrollment, course)
+
         return Response({"lesson_id": lesson.id, "completed": True})
 
 
@@ -225,6 +243,8 @@ class SubmitQuizView(APIView):
         progress.max_score = max_score
         progress.completed_at = timezone.now()
         progress.save()
+
+        maybe_mark_course_completed(enrollment, course)
 
         return Response(
             {

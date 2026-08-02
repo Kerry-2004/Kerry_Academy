@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.courses",
     "apps.enrollments",
+    "apps.content",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -217,6 +218,21 @@ UNFOLD = {
                         "title": "Inscriptions",
                         "icon": "assignment_turned_in",
                         "link": "/admin/enrollments/enrollment/",
+                    },
+                ],
+            },
+            {
+                "title": "Page d'accueil",
+                "items": [
+                    {
+                        "title": "Vidéo d'accueil",
+                        "icon": "smart_display",
+                        "link": "/admin/content/homecontent/",
+                    },
+                    {
+                        "title": "Témoignages",
+                        "icon": "reviews",
+                        "link": "/admin/content/testimonial/",
                     },
                 ],
             },

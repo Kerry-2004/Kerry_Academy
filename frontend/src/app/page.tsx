@@ -1,9 +1,23 @@
 import TestimonialsSection from "@/components/TestimonialsSection";
+import TestimonialsGrid from "@/components/TestimonialsGrid";
 import FramedHero from "@/components/FramedHero";
 import CourseExplorer from "@/components/CourseExplorer";
 import Reveal from "@/components/Reveal";
+import {
+  fetchApprovedTestimonials,
+  fetchHomeContent,
+  type HomeContent,
+  type Testimonial,
+} from "@/lib/api";
 
-const testimonials = [
+// La page d'accueil dépend de contenu géré depuis l'admin (vidéo, témoignages
+// approuvés) : on la rend dynamiquement pour qu'elle reflète toujours l'état
+// le plus récent, au lieu d'être figée au moment du build.
+export const dynamic = "force-dynamic";
+
+// Témoignages d'exemple, affichés tant qu'aucun avis réel n'a été approuvé —
+// pour que la section ne soit jamais vide au lancement.
+const sampleTestimonials = [
   {
     quote:
       "Grâce à Kerryht Academy, j'ai appris le marketing digital en partant de zéro. Aujourd'hui je gère les réseaux sociaux de trois entreprises à Port-au-Prince.",
@@ -34,10 +48,29 @@ const testimonials = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  let home: HomeContent = { hero_video: null, hero_poster: null };
+  let approved: Testimonial[] = [];
+
+  // Le rendu de l'accueil ne doit jamais casser si l'API est momentanément
+  // indisponible : on retombe alors sur les valeurs par défaut.
+  try {
+    home = await fetchHomeContent();
+  } catch {
+    /* garde les valeurs par défaut */
+  }
+  try {
+    approved = await fetchApprovedTestimonials();
+  } catch {
+    /* garde le tableau vide */
+  }
+
   return (
     <main className="flex flex-1 flex-col">
-      <FramedHero />
+      <FramedHero
+        videoSrc={home.hero_video ?? undefined}
+        posterSrc={home.hero_poster ?? undefined}
+      />
 
       <section className="border-t border-white/5 px-6 py-20 lg:px-12">
         <CourseExplorer />
@@ -50,7 +83,11 @@ export default function HomePage() {
             Ce que disent nos étudiants
           </h2>
         </Reveal>
-        <TestimonialsSection testimonials={testimonials} />
+        {approved.length > 0 ? (
+          <TestimonialsGrid testimonials={approved} />
+        ) : (
+          <TestimonialsSection testimonials={sampleTestimonials} />
+        )}
       </section>
     </main>
   );

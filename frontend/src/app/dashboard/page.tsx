@@ -2,15 +2,66 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { IconBook2, IconChevronRight, IconCircleCheckFilled } from "@tabler/icons-react";
+import {
+  IconBook2,
+  IconChevronRight,
+  IconCircleCheckFilled,
+  IconClockFilled,
+  IconStarFilled,
+} from "@tabler/icons-react";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import ReviewModal from "@/components/ReviewModal";
 import { useAuth } from "@/lib/auth-context";
-import { fetchMyEnrollments, type Enrollment } from "@/lib/api";
+import {
+  fetchMyEnrollments,
+  fetchMyTestimonials,
+  type Enrollment,
+  type MyTestimonial,
+} from "@/lib/api";
 
 type Tab = "actifs" | "completes";
 
-function EnrollmentCard({ enrollment }: { enrollment: Enrollment }) {
+function ReviewStatus({ review }: { review: MyTestimonial }) {
+  const config = {
+    pending: {
+      icon: <IconClockFilled className="h-3.5 w-3.5" />,
+      label: "Avis en attente de validation",
+      className: "bg-white/5 text-muted-foreground",
+    },
+    approved: {
+      icon: <IconCircleCheckFilled className="h-3.5 w-3.5" />,
+      label: "Avis publié",
+      className: "bg-gold/15 text-gold",
+    },
+    rejected: {
+      icon: <IconStarFilled className="h-3.5 w-3.5" />,
+      label: "Avis non retenu",
+      className: "bg-red-500/10 text-red-400",
+    },
+  }[review.status];
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${config.className}`}
+    >
+      {config.icon}
+      {config.label}
+    </span>
+  );
+}
+
+function EnrollmentCard({
+  enrollment,
+  review,
+  onReview,
+}: {
+  enrollment: Enrollment;
+  review?: MyTestimonial;
+  onReview: (enrollment: Enrollment) => void;
+}) {
+  const isCompleted = enrollment.status === "completed";
+
   return (
     <div className="border-b border-white/5 py-5 last:border-b-0">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -60,6 +111,23 @@ function EnrollmentCard({ enrollment }: { enrollment: Enrollment }) {
           </Link>
         </div>
       </div>
+
+      {/* Avis : uniquement pour les formations terminées. */}
+      {isCompleted && (
+        <div className="mt-4 flex items-center justify-end sm:mt-3">
+          {review ? (
+            <ReviewStatus review={review} />
+          ) : (
+            <button
+              onClick={() => onReview(enrollment)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 px-4 py-1.5 text-xs font-semibold text-gold transition hover:bg-gold/10"
+            >
+              <IconStarFilled className="h-3.5 w-3.5" />
+              Laisser un avis
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -67,6 +135,8 @@ function EnrollmentCard({ enrollment }: { enrollment: Enrollment }) {
 function DashboardContent() {
   const { user, accessToken, logout } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[] | null>(null);
+  const [reviews, setReviews] = useState<MyTestimonial[]>([]);
+  const [reviewing, setReviewing] = useState<Enrollment | null>(null);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<Tab>("actifs");
 
@@ -75,12 +145,16 @@ function DashboardContent() {
     fetchMyEnrollments(accessToken)
       .then(setEnrollments)
       .catch(() => setError(true));
+    fetchMyTestimonials(accessToken)
+      .then(setReviews)
+      .catch(() => setReviews([]));
   }, [accessToken]);
 
   const filtered = (enrollments ?? []).filter((e) =>
     tab === "completes" ? e.status === "completed" : e.status !== "completed",
   );
 
+  const reviewByCourse = new Map(reviews.map((r) => [r.course, r]));
   const initial = (user?.first_name || user?.email || "?").charAt(0).toUpperCase();
 
   return (
@@ -146,12 +220,29 @@ function DashboardContent() {
           ) : (
             <div>
               {filtered.map((enrollment) => (
-                <EnrollmentCard key={enrollment.id} enrollment={enrollment} />
+                <EnrollmentCard
+                  key={enrollment.id}
+                  enrollment={enrollment}
+                  review={reviewByCourse.get(enrollment.course.id)}
+                  onReview={setReviewing}
+                />
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {reviewing && accessToken && (
+        <ReviewModal
+          enrollment={reviewing}
+          accessToken={accessToken}
+          onClose={() => setReviewing(null)}
+          onSubmitted={(testimonial) => {
+            setReviews((prev) => [...prev, testimonial]);
+            setReviewing(null);
+          }}
+        />
+      )}
     </main>
   );
 }

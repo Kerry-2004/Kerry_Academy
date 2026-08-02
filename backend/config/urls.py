@@ -12,6 +12,7 @@ urlpatterns = [
     path("api/auth/", include("apps.accounts.urls")),
     path("api/courses/", include("apps.courses.urls")),
     path("api/enrollments/", include("apps.enrollments.urls")),
+    path("api/content/", include("apps.content.urls")),
 ]
 
 # Sert les fichiers média (vidéos, images uploadées) avec support des requêtes

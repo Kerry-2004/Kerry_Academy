@@ -42,6 +42,32 @@ export interface Enrollment {
   enrolled_at: string;
 }
 
+export interface HomeContent {
+  hero_video: string | null;
+  hero_poster: string | null;
+}
+
+export interface Testimonial {
+  id: number;
+  author_name: string;
+  rating: number;
+  comment: string;
+  course_title: string;
+  created_at: string;
+}
+
+export type TestimonialStatus = "pending" | "approved" | "rejected";
+
+export interface MyTestimonial {
+  id: number;
+  course: number;
+  course_title: string;
+  rating: number;
+  comment: string;
+  status: TestimonialStatus;
+  created_at: string;
+}
+
 export interface QuizAnswer {
   id: number;
   text: string;
@@ -183,6 +209,29 @@ export function fetchCourse(slug: string) {
 
 export function fetchMyEnrollments(accessToken: string) {
   return request<Enrollment[]>("/api/enrollments/me/", {}, accessToken);
+}
+
+export function fetchHomeContent() {
+  return request<HomeContent>("/api/content/home/");
+}
+
+export function fetchApprovedTestimonials() {
+  return request<Testimonial[]>("/api/content/testimonials/");
+}
+
+export function fetchMyTestimonials(accessToken: string) {
+  return request<MyTestimonial[]>("/api/content/testimonials/mine/", {}, accessToken);
+}
+
+export function submitTestimonial(
+  data: { course: number; rating: number; comment: string },
+  accessToken: string,
+) {
+  return request<MyTestimonial>(
+    "/api/content/testimonials/submit/",
+    { method: "POST", body: JSON.stringify(data) },
+    accessToken,
+  );
 }
 
 export function fetchCourseProgress(slug: string, accessToken: string) {

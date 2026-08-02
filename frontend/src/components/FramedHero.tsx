@@ -5,7 +5,13 @@ import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
 import SplitScreenShowcase from "@/components/SplitScreenShowcase";
 
-export default function FramedHero() {
+export default function FramedHero({
+  videoSrc,
+  posterSrc,
+}: {
+  videoSrc?: string;
+  posterSrc?: string;
+}) {
   const { user, loading, logout } = useAuth();
   const reduce = useReducedMotion();
 
@@ -100,7 +106,10 @@ export default function FramedHero() {
           transition={{ duration: 0.6, ease: "easeOut", delay: reduce ? 0 : 0.5 }}
           className="relative z-10 mx-auto -mt-32 max-w-4xl px-4 pb-8 sm:px-8"
         >
-          <SplitScreenShowcase posterSrc="/images/kerry-hero.png" />
+          <SplitScreenShowcase
+            posterSrc={posterSrc || "/images/kerry-hero.png"}
+            videoSrc={videoSrc}
+          />
         </motion.div>
       </div>
     </section>

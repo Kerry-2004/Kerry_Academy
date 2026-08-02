@@ -1,0 +1,80 @@
+from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+
+from apps.courses.models import Course
+
+
+class HomeContent(models.Model):
+    """Contenu éditable de la page d'accueil.
+
+    Fiche unique (singleton) : il n'y a qu'une seule page d'accueil, donc on
+    force toujours la même ligne (pk=1). L'admin peut téléverser, remplacer ou
+    supprimer la vidéo et l'image de couverture affichées sur l'accueil.
+    """
+
+    hero_video = models.FileField(
+        "Vidéo d'accueil", upload_to="home/", blank=True, null=True
+    )
+    hero_poster = models.ImageField(
+        "Image de couverture", upload_to="home/", blank=True, null=True
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Page d'accueil"
+        verbose_name_plural = "Page d'accueil"
+
+    def __str__(self):
+        return "Page d'accueil"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # garantit une seule ligne
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class Testimonial(models.Model):
+    """Avis laissé par un étudiant ayant terminé une formation.
+
+    Un avis n'est JAMAIS publié automatiquement : il naît en statut « en
+    attente » et n'apparaît sur la page d'accueil qu'une fois « approuvé » par
+    l'administrateur.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "En attente"
+        APPROVED = "approved", "Approuvé"
+        REJECTED = "rejected", "Refusé"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="testimonials"
+    )
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="testimonials"
+    )
+    # Nom d'affichage figé au moment de l'avis (indépendant des changements de profil).
+    author_name = models.CharField(max_length=200)
+    rating = models.PositiveSmallIntegerField(
+        "Note (sur 5)",
+        default=5,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    comment = models.TextField("Commentaire")
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.PENDING
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        # Un seul avis par étudiant et par formation.
+        unique_together = ["user", "course"]
+
+    def __str__(self):
+        return f"{self.author_name} — {self.course.title} ({self.get_status_display()})"
