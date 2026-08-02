@@ -139,6 +139,16 @@ CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localho
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=["http://localhost:3000"])
 
+# --- Email (Resend, via l'API HTTP — voir apps/accounts/emails.py) ---
+# Clé API Resend. Si vide, les emails sont simplement ignorés (utile en local/tests).
+RESEND_API_KEY = env("RESEND_API_KEY", default="")
+# Expéditeur. Le domaine doit être vérifié dans Resend. Pour un premier test sans
+# domaine vérifié, Resend autorise "onboarding@resend.dev" MAIS uniquement vers
+# l'email du compte Resend. En prod : "Kerryht Academy <bonjour@kerryht.com>".
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Kerryht Academy <onboarding@resend.dev>")
+# URL publique du site, utilisée dans les liens des emails.
+SITE_URL = env("SITE_URL", default="http://localhost:3000")
+
 # --- Variables réservées aux phases suivantes (documentées ici, non utilisées en Phase 1) ---
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")

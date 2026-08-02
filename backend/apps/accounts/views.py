@@ -8,6 +8,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .emails import send_welcome_email
 from .models import User
 from .serializers import RegisterSerializer, UserSerializer
 
@@ -39,6 +40,9 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
+        # Email de bienvenue (envoyé en arrière-plan ; n'échoue jamais la requête).
+        send_welcome_email(user)
 
         refresh = RefreshToken.for_user(user)
         response = Response(

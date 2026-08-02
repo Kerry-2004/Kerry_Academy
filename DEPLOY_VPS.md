@@ -121,11 +121,17 @@ REFRESH_COOKIE_SAMESITE=Lax
 Migrations, fichiers statiques, compte admin :
 
 ```bash
+export DJANGO_SETTINGS_MODULE=config.settings.prod
 python manage.py migrate
 python manage.py collectstatic --no-input
 python manage.py createsuperuser
 deactivate
 ```
+
+> ⚠️ **Important** : le `export DJANGO_SETTINGS_MODULE=config.settings.prod` est
+> indispensable. Sans lui, `manage.py` utilise les réglages de **dev** et
+> `collectstatic` ne génère pas le manifeste de production → l'admin renvoie une
+> erreur **500**. (À refaire à chaque nouvelle session shell.)
 
 ---
 
@@ -200,6 +206,37 @@ Certbot obtient le certificat, ajoute le HTTPS et la redirection HTTP→HTTPS. R
 
 ---
 
+## 10bis. Emails de bienvenue (Resend)
+
+Chaque nouvel inscrit reçoit automatiquement un email de bienvenue, envoyé via
+l'**API HTTP de Resend** (port 443 — pas de SMTP, donc rien n'est bloqué par le VPS).
+
+1. Créez un compte sur [resend.com](https://resend.com).
+2. **Vérifiez votre domaine** `kerryht.com` (Resend → *Domains* → *Add Domain*) :
+   ajoutez les enregistrements DNS (SPF/DKIM) fournis dans la zone DNS de `kerryht.com`.
+   > Sans domaine vérifié, on ne peut envoyer que depuis `onboarding@resend.dev`
+   > et **uniquement vers l'email de votre compte Resend** (donc pour tester seulement).
+3. Créez une **clé API** (Resend → *API Keys*).
+4. Ajoutez ces 3 lignes au fichier `backend/.env` sur le serveur :
+
+   ```
+   RESEND_API_KEY=re_votre_cle_api
+   DEFAULT_FROM_EMAIL=Kerryht Academy <bonjour@kerryht.com>
+   SITE_URL=https://school.kerryht.com
+   ```
+
+5. Redémarrez le backend :
+
+   ```bash
+   sudo systemctl restart kerryht-backend
+   ```
+
+> Si `RESEND_API_KEY` est vide, l'inscription fonctionne quand même — l'email est
+> simplement ignoré (aucune erreur). L'envoi se fait en arrière-plan : même si
+> Resend est indisponible, l'inscription n'échoue jamais.
+
+---
+
 ## 11. Mettre à jour l'application plus tard
 
 ```bash
@@ -208,6 +245,7 @@ git pull
 
 # Backend
 cd backend && source venv/bin/activate
+export DJANGO_SETTINGS_MODULE=config.settings.prod   # sinon collectstatic casse l'admin (500)
 pip install -r requirements/prod.txt
 python manage.py migrate
 python manage.py collectstatic --no-input

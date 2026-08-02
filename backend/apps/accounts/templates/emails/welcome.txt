@@ -1,0 +1,17 @@
+Bienvenue{% if first_name %}, {{ first_name }}{% endif %} sur Kerryht Academy !
+
+Votre compte vient d'etre cree avec succes. Vous faites desormais partie de
+Kerryht Academy, votre espace d'apprentissage pour monter en competences a
+votre rythme.
+
+Explorez nos formations, suivez votre progression et validez vos acquis avec
+des quiz.
+
+Explorer les formations : {{ courses_url }}
+Votre tableau de bord : {{ dashboard_url }}
+
+Une question ? Repondez simplement a cet email.
+
+--
+Kerryht Academy
+{{ site_url }}
