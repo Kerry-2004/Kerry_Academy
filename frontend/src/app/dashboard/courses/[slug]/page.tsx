@@ -17,8 +17,15 @@ import {
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import QuizPlayer from "@/components/QuizPlayer";
+import PaymentModal from "@/components/PaymentModal";
 import { useAuth } from "@/lib/auth-context";
-import { completeLesson, fetchCourseProgress, type CourseProgress } from "@/lib/api";
+import {
+  completeLesson,
+  fetchCourseProgress,
+  fetchPaymentSettings,
+  type CourseProgress,
+  type PaymentSettings,
+} from "@/lib/api";
 
 type Selection = { type: "overview" } | { type: "lesson"; lessonId: number };
 
@@ -37,6 +44,8 @@ function CourseCurriculum({ slug }: { slug: string }) {
   const [selection, setSelection] = useState<Selection>({ type: "overview" });
   const [openModules, setOpenModules] = useState<Set<number>>(new Set());
   const [completing, setCompleting] = useState(false);
+  const [payment, setPayment] = useState<PaymentSettings | null>(null);
+  const [showPayment, setShowPayment] = useState(false);
 
   const load = (isInitial: boolean) => {
     if (!accessToken) return;
@@ -51,6 +60,13 @@ function CourseCurriculum({ slug }: { slug: string }) {
   };
 
   useEffect(() => load(true), [accessToken, slug]);
+
+  // Instructions de paiement (pour le pop-up quand l'accès complet est verrouillé).
+  useEffect(() => {
+    fetchPaymentSettings()
+      .then(setPayment)
+      .catch(() => setPayment(null));
+  }, []);
 
   const toggleModule = (moduleId: number) => {
     setOpenModules((prev) => {
@@ -163,14 +179,25 @@ function CourseCurriculum({ slug }: { slug: string }) {
                   <div className="ml-4 flex flex-col gap-0.5 border-l border-white/10 pl-3">
                     {module.lessons.map((lesson) => {
                       const isSelected = selectedLesson?.id === lesson.id;
+                      const paymentLocked = lesson.is_locked && lesson.lock_reason === "payment";
+                      const sequenceLocked = lesson.is_locked && lesson.lock_reason !== "payment";
                       return (
                         <button
                           key={lesson.id}
-                          onClick={() => !lesson.is_locked && openLesson(lesson.id, module.id)}
-                          disabled={lesson.is_locked}
-                          title={lesson.is_locked ? "Terminez la leçon précédente pour débloquer" : undefined}
+                          onClick={() => {
+                            if (!lesson.is_locked) openLesson(lesson.id, module.id);
+                            else if (paymentLocked) setShowPayment(true);
+                          }}
+                          disabled={sequenceLocked}
+                          title={
+                            paymentLocked
+                              ? "Débloquez l'accès complet (paiement)"
+                              : sequenceLocked
+                                ? "Terminez la leçon précédente pour débloquer"
+                                : undefined
+                          }
                           className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
-                            lesson.is_locked
+                            sequenceLocked
                               ? "cursor-not-allowed text-muted-2"
                               : isSelected
                                 ? "bg-gold-dim text-gold-light"
@@ -184,7 +211,12 @@ function CourseCurriculum({ slug }: { slug: string }) {
                           ) : (
                             <IconCircleDashed className="h-4 w-4 shrink-0" />
                           )}
-                          {lesson.title}
+                          <span className="flex-1 truncate">{lesson.title}</span>
+                          {data.requires_payment && lesson.is_free_preview && (
+                            <span className="rounded-full bg-gold/15 px-1.5 py-0.5 text-[10px] font-semibold text-gold">
+                              Aperçu
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -197,6 +229,22 @@ function CourseCurriculum({ slug }: { slug: string }) {
       </aside>
 
       <div className="flex-1 lg:pl-8">
+        {data.requires_payment && (
+          <button
+            onClick={() => setShowPayment(true)}
+            className="mb-6 flex w-full items-center gap-3 rounded-2xl border border-gold/30 bg-gold-dim px-5 py-4 text-left transition hover:border-gold/60"
+          >
+            <IconLock className="h-5 w-5 shrink-0 text-gold" />
+            <span className="flex-1">
+              <span className="block font-syne text-sm font-bold text-white">Accès limité à l'aperçu</span>
+              <span className="block text-xs text-gold-light">
+                Cliquez pour débloquer l'accès complet à la formation.
+              </span>
+            </span>
+            <IconArrowRight className="h-4 w-4 shrink-0 text-gold" />
+          </button>
+        )}
+
         {selection.type === "overview" ? (
           <div className="pt-6 lg:pt-0">
             <div className="relative aspect-[21/9] w-full overflow-hidden rounded-2xl bg-[#141414]">
@@ -321,6 +369,14 @@ function CourseCurriculum({ slug }: { slug: string }) {
           </div>
         )}
       </div>
+
+      {showPayment && payment && (
+        <PaymentModal
+          settings={payment}
+          courseTitle={data.course.title}
+          onClose={() => setShowPayment(false)}
+        />
+      )}
     </main>
   );
 }

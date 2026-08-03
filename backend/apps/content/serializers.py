@@ -1,6 +1,16 @@
 from rest_framework import serializers
 
-from .models import Ebook, EbookOrder, Testimonial
+from .models import Ebook, EbookOrder, PaymentSettings, Testimonial
+
+
+class PaymentSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentSettings
+        fields = [
+            "moncash_number", "moncash_name",
+            "natcash_number", "natcash_name",
+            "whatsapp_number", "instructions",
+        ]
 
 
 class TestimonialPublicSerializer(serializers.ModelSerializer):

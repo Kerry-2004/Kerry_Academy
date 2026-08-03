@@ -296,6 +296,11 @@ UNFOLD = {
                         "icon": "shopping_cart",
                         "link": "/admin/content/ebookorder/",
                     },
+                    {
+                        "title": "Paiement (instructions)",
+                        "icon": "payments",
+                        "link": "/admin/content/paymentsettings/",
+                    },
                 ],
             },
         ],

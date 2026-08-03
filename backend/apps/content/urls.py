@@ -9,10 +9,12 @@ from .views import (
     HomeContentView,
     MyEbookOrdersView,
     MyTestimonialsView,
+    PaymentSettingsView,
 )
 
 urlpatterns = [
     path("home/", HomeContentView.as_view(), name="home-content"),
+    path("payment-settings/", PaymentSettingsView.as_view(), name="payment-settings"),
     path("testimonials/", ApprovedTestimonialsView.as_view(), name="testimonials"),
     path("testimonials/mine/", MyTestimonialsView.as_view(), name="my-testimonials"),
     path("testimonials/submit/", CreateTestimonialView.as_view(), name="submit-testimonial"),

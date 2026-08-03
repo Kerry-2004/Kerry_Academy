@@ -93,6 +93,44 @@ class Testimonial(models.Model):
         return f"{self.author_name} — {self.course.title} ({self.get_status_display()})"
 
 
+class PaymentSettings(models.Model):
+    """Instructions de paiement (modifiables) affichées à l'étudiant qui doit
+    payer pour débloquer l'accès complet à une formation. Fiche unique."""
+
+    moncash_number = models.CharField("Numéro MonCash", max_length=40, blank=True, default="+509 4780-8070")
+    moncash_name = models.CharField("Nom du compte MonCash", max_length=120, blank=True, default="Kerry Cherestal")
+    natcash_number = models.CharField("Numéro Natcash", max_length=40, blank=True, default="+509 4157-0822")
+    natcash_name = models.CharField("Nom du compte Natcash", max_length=120, blank=True, default="Kerry Cherestal")
+    whatsapp_number = models.CharField(
+        "Numéro WhatsApp (envoi de la preuve)", max_length=40, blank=True, default="+509 4780-8070"
+    )
+    instructions = models.TextField(
+        "Message d'instructions",
+        blank=True,
+        default=(
+            "Envoyez la preuve de paiement via WhatsApp. Dans un délai de moins "
+            "d'1 h de temps, vous aurez accès à la formation complète."
+        ),
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Paiement (instructions)"
+        verbose_name_plural = "Paiement (instructions)"
+
+    def __str__(self):
+        return "Instructions de paiement"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class Ebook(models.Model):
     """Ebook vendu sur la page d'accueil.
 

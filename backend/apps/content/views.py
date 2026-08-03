@@ -11,11 +11,12 @@ from rest_framework.views import APIView
 from apps.courses.models import Lesson
 from apps.enrollments.models import Enrollment, Progress
 
-from .models import Ebook, EbookOrder, HomeContent, Testimonial
+from .models import Ebook, EbookOrder, HomeContent, PaymentSettings, Testimonial
 from .serializers import (
     EbookSerializer,
     MyEbookOrderSerializer,
     MyTestimonialSerializer,
+    PaymentSettingsSerializer,
     TestimonialCreateSerializer,
     TestimonialPublicSerializer,
 )
@@ -59,6 +60,15 @@ class HomeContentView(APIView):
                 ),
             }
         )
+
+
+class PaymentSettingsView(APIView):
+    """Instructions de paiement publiques (MonCash / Natcash / WhatsApp)."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(PaymentSettingsSerializer(PaymentSettings.load()).data)
 
 
 class ApprovedTestimonialsView(generics.ListAPIView):

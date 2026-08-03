@@ -2,7 +2,25 @@ from django.contrib import admin
 from django.utils import timezone
 from unfold.admin import ModelAdmin
 
-from .models import Ebook, EbookOrder, HomeContent, Testimonial
+from .models import Ebook, EbookOrder, HomeContent, PaymentSettings, Testimonial
+
+
+@admin.register(PaymentSettings)
+class PaymentSettingsAdmin(ModelAdmin):
+    """Écran unique : instructions de paiement modifiables."""
+
+    fields = [
+        "moncash_number", "moncash_name",
+        "natcash_number", "natcash_name",
+        "whatsapp_number", "instructions", "updated_at",
+    ]
+    readonly_fields = ["updated_at"]
+
+    def has_add_permission(self, request):
+        return not PaymentSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(HomeContent)

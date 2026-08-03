@@ -142,11 +142,22 @@ export interface LessonProgress {
   content_type: "text" | "video" | "quiz" | "file";
   is_completed: boolean;
   is_locked: boolean;
+  lock_reason: "payment" | "sequence" | null;
+  is_free_preview: boolean;
   video: string | null;
   text_content: string | null;
   file: string | null;
   questions: QuizQuestion[];
   quiz_result: QuizResult | null;
+}
+
+export interface PaymentSettings {
+  moncash_number: string;
+  moncash_name: string;
+  natcash_number: string;
+  natcash_name: string;
+  whatsapp_number: string;
+  instructions: string;
 }
 
 export interface QuizQuestionResult {
@@ -181,6 +192,7 @@ export interface CourseProgress {
     thumbnail: string | null;
   };
   status: EnrollmentStatus;
+  requires_payment: boolean;
   progress_percent: number;
   modules: ModuleProgress[];
 }
@@ -272,6 +284,10 @@ export function fetchMyEnrollments(accessToken: string) {
 
 export function fetchHomeContent() {
   return request<HomeContent>("/api/content/home/");
+}
+
+export function fetchPaymentSettings() {
+  return request<PaymentSettings>("/api/content/payment-settings/");
 }
 
 export function fetchApprovedTestimonials() {

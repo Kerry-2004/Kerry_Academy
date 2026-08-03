@@ -65,15 +65,30 @@ class EnrollView(APIView):
 
     def post(self, request, slug):
         course = get_object_or_404(Course, slug=slug, is_published=True)
+        # Formation gratuite → accès immédiat ; payante → en attente de paiement
+        # (l'étudiant ne voit que l'aperçu jusqu'à confirmation du paiement).
+        initial_status = (
+            Enrollment.Status.ACTIVE if course.price == 0 else Enrollment.Status.PENDING_PAYMENT
+        )
         enrollment, created = Enrollment.objects.get_or_create(
             user=request.user,
             course=course,
-            defaults={"status": Enrollment.Status.ACTIVE},
+            defaults={"status": initial_status},
         )
         return Response(
             {"slug": course.slug, "status": enrollment.status, "created": created},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+def lesson_access_denied(enrollment, course, lesson):
+    """None si la leçon est accessible, sinon le motif : 'payment' (accès complet
+    non payé, hors leçons d'aperçu) ou 'sequence' (leçon précédente non terminée)."""
+    if enrollment.status == Enrollment.Status.PENDING_PAYMENT:
+        return None if lesson.is_free_preview else "payment"
+    if is_lesson_locked(enrollment, course, lesson):
+        return "sequence"
+    return None
 
 
 class CourseProgressView(APIView):
@@ -88,6 +103,10 @@ class CourseProgressView(APIView):
             lesson_id for lesson_id, p in progress_by_lesson.items() if p.completed_at is not None
         }
 
+        # En attente de paiement : seules les leçons « aperçu gratuit » sont
+        # accessibles ; le reste est verrouillé jusqu'à confirmation du paiement.
+        requires_payment = enrollment.status == Enrollment.Status.PENDING_PAYMENT
+
         modules_data = []
         total_lessons = 0
         completed_lessons = 0
@@ -97,7 +116,12 @@ class CourseProgressView(APIView):
             lessons_data = []
             for lesson in module.lessons.all():
                 is_completed = lesson.id in completed_lesson_ids
-                is_locked = not previous_completed
+                if requires_payment:
+                    is_locked = not lesson.is_free_preview
+                    lock_reason = "payment" if is_locked else None
+                else:
+                    is_locked = not previous_completed
+                    lock_reason = "sequence" if is_locked else None
                 total_lessons += 1
                 completed_lessons += 1 if is_completed else 0
 
@@ -122,6 +146,8 @@ class CourseProgressView(APIView):
                         "content_type": lesson.content_type,
                         "is_completed": is_completed,
                         "is_locked": is_locked,
+                        "lock_reason": lock_reason,
+                        "is_free_preview": lesson.is_free_preview,
                         "video": (
                             request.build_absolute_uri(lesson.video.url)
                             if lesson.video and not is_locked
@@ -174,6 +200,7 @@ class CourseProgressView(APIView):
                     "thumbnail": request.build_absolute_uri(course.thumbnail.url) if course.thumbnail else None,
                 },
                 "status": enrollment.status,
+                "requires_payment": requires_payment,
                 "progress_percent": progress_percent,
                 "modules": modules_data,
             }
@@ -188,7 +215,13 @@ class CompleteLessonView(APIView):
         enrollment = get_object_or_404(Enrollment, user=request.user, course=course)
         lesson = get_object_or_404(Lesson, id=lesson_id, module__course=course)
 
-        if is_lesson_locked(enrollment, course, lesson):
+        reason = lesson_access_denied(enrollment, course, lesson)
+        if reason == "payment":
+            return Response(
+                {"detail": "Payez pour débloquer l'accès complet à cette formation."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if reason == "sequence":
             return Response(
                 {"detail": "Terminez d'abord la leçon précédente."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -215,7 +248,13 @@ class SubmitQuizView(APIView):
             Lesson, id=lesson_id, module__course=course, content_type=Lesson.ContentType.QUIZ
         )
 
-        if is_lesson_locked(enrollment, course, lesson):
+        reason = lesson_access_denied(enrollment, course, lesson)
+        if reason == "payment":
+            return Response(
+                {"detail": "Payez pour débloquer l'accès complet à cette formation."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if reason == "sequence":
             return Response(
                 {"detail": "Terminez d'abord la leçon précédente."},
                 status=status.HTTP_403_FORBIDDEN,
