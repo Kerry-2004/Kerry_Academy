@@ -7,6 +7,8 @@ import {
   IconChevronRight,
   IconCircleCheckFilled,
   IconClockFilled,
+  IconDownload,
+  IconShoppingCart,
   IconStarFilled,
 } from "@tabler/icons-react";
 import Navbar from "@/components/Navbar";
@@ -14,13 +16,18 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import ReviewModal from "@/components/ReviewModal";
 import { useAuth } from "@/lib/auth-context";
 import {
+  ApiError,
+  downloadEbook,
+  fetchMyEbookOrders,
   fetchMyEnrollments,
   fetchMyTestimonials,
   type Enrollment,
+  type MyEbookOrder,
   type MyTestimonial,
 } from "@/lib/api";
 
 type Tab = "actifs" | "completes";
+type View = "cours" | "ebooks";
 
 function ReviewStatus({ review }: { review: MyTestimonial }) {
   const config = {
@@ -132,13 +139,80 @@ function EnrollmentCard({
   );
 }
 
+function EbookOrderCard({ order, accessToken }: { order: MyEbookOrder; accessToken: string }) {
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDownload() {
+    setDownloading(true);
+    setError(null);
+    try {
+      await downloadEbook(order.ebook_id, `${order.ebook_title}.pdf`, accessToken);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Téléchargement impossible.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div className="border-b border-white/5 py-5 last:border-b-0">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="relative h-20 w-16 shrink-0 overflow-hidden rounded-lg bg-white/5">
+          {order.ebook_cover ? (
+            // eslint-disable-next-line @next/next/no-img-element -- upload backend, hors optimiseur
+            <img src={order.ebook_cover} alt={order.ebook_title} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <IconBook2 className="h-6 w-6 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1">
+          <p className="font-syne text-base font-semibold text-white">{order.ebook_title}</p>
+          {order.ebook_author && (
+            <p className="text-xs text-muted-foreground">par {order.ebook_author}</p>
+          )}
+          <p className="mt-0.5 text-xs text-muted-foreground">Réf. {order.reference}</p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {order.status === "paid" ? (
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="inline-flex items-center gap-1.5 rounded-full bg-gold px-4 py-2 text-xs font-bold text-[#0d0d0d] transition hover:opacity-90 disabled:opacity-60"
+            >
+              <IconDownload className="h-4 w-4" />
+              {downloading ? "Téléchargement…" : "Télécharger"}
+            </button>
+          ) : order.status === "cancelled" ? (
+            <span className="rounded-full bg-white/5 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              Annulée
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-dim px-3 py-1.5 text-xs font-medium text-gold-light">
+              <IconClockFilled className="h-3.5 w-3.5" />
+              En attente de paiement
+            </span>
+          )}
+        </div>
+      </div>
+      {error && <p className="mt-2 text-right text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 function DashboardContent() {
   const { user, accessToken, logout } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[] | null>(null);
   const [reviews, setReviews] = useState<MyTestimonial[]>([]);
   const [reviewing, setReviewing] = useState<Enrollment | null>(null);
+  const [ebookOrders, setEbookOrders] = useState<MyEbookOrder[] | null>(null);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<Tab>("actifs");
+  const [view, setView] = useState<View>("cours");
 
   useEffect(() => {
     if (!accessToken) return;
@@ -148,6 +222,9 @@ function DashboardContent() {
     fetchMyTestimonials(accessToken)
       .then(setReviews)
       .catch(() => setReviews([]));
+    fetchMyEbookOrders(accessToken)
+      .then(setEbookOrders)
+      .catch(() => setEbookOrders([]));
   }, [accessToken]);
 
   const filtered = (enrollments ?? []).filter((e) =>
@@ -176,7 +253,22 @@ function DashboardContent() {
         </div>
 
         <nav className="mt-8 flex flex-col gap-1 border-t border-white/5 pt-6 lg:border-t-0 lg:pt-0">
-          <span className="rounded-lg bg-white/5 px-4 py-2.5 text-sm font-semibold text-gold">Mes Cours</span>
+          <button
+            onClick={() => setView("cours")}
+            className={`rounded-lg px-4 py-2.5 text-left text-sm font-semibold transition ${
+              view === "cours" ? "bg-white/5 text-gold" : "text-muted-foreground hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            Mes Cours
+          </button>
+          <button
+            onClick={() => setView("ebooks")}
+            className={`rounded-lg px-4 py-2.5 text-left text-sm font-semibold transition ${
+              view === "ebooks" ? "bg-white/5 text-gold" : "text-muted-foreground hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            Mes ebooks
+          </button>
           <button
             onClick={() => logout()}
             className="rounded-lg px-4 py-2.5 text-left text-sm text-muted-foreground transition hover:bg-white/5 hover:text-white"
@@ -187,49 +279,74 @@ function DashboardContent() {
       </aside>
 
       <div className="flex-1 border-t border-white/5 pt-10 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
-        <h1 className="font-syne text-3xl font-bold text-white">Programmes</h1>
-        <p className="mt-2 text-muted-foreground">Suivez la progression de vos programmes.</p>
+        {view === "cours" ? (
+          <>
+            <h1 className="font-syne text-3xl font-bold text-white">Programmes</h1>
+            <p className="mt-2 text-muted-foreground">Suivez la progression de vos programmes.</p>
 
-        <div className="mt-8 flex gap-6 border-b border-white/10">
-          {(["actifs", "completes"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`-mb-px border-b-2 pb-3 text-sm font-medium transition ${
-                tab === t ? "border-gold text-gold" : "border-transparent text-muted-foreground hover:text-white"
-              }`}
-            >
-              {t === "actifs" ? "Actifs" : "Complétés"}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4">
-          {error ? (
-            <p className="mt-6 text-sm text-red-400">
-              Impossible de charger vos formations pour le moment. Réessayez plus tard.
-            </p>
-          ) : enrollments === null ? (
-            <p className="mt-6 text-sm text-muted-foreground">Chargement…</p>
-          ) : filtered.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">
-              {tab === "actifs"
-                ? "Vous n'êtes inscrit à aucune formation active pour le moment."
-                : "Aucune formation complétée pour le moment."}
-            </p>
-          ) : (
-            <div>
-              {filtered.map((enrollment) => (
-                <EnrollmentCard
-                  key={enrollment.id}
-                  enrollment={enrollment}
-                  review={reviewByCourse.get(enrollment.course.id)}
-                  onReview={setReviewing}
-                />
+            <div className="mt-8 flex gap-6 border-b border-white/10">
+              {(["actifs", "completes"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`-mb-px border-b-2 pb-3 text-sm font-medium transition ${
+                    tab === t ? "border-gold text-gold" : "border-transparent text-muted-foreground hover:text-white"
+                  }`}
+                >
+                  {t === "actifs" ? "Actifs" : "Complétés"}
+                </button>
               ))}
             </div>
-          )}
-        </div>
+
+            <div className="mt-4">
+              {error ? (
+                <p className="mt-6 text-sm text-red-400">
+                  Impossible de charger vos formations pour le moment. Réessayez plus tard.
+                </p>
+              ) : enrollments === null ? (
+                <p className="mt-6 text-sm text-muted-foreground">Chargement…</p>
+              ) : filtered.length === 0 ? (
+                <p className="mt-6 text-sm text-muted-foreground">
+                  {tab === "actifs"
+                    ? "Vous n'êtes inscrit à aucune formation active pour le moment."
+                    : "Aucune formation complétée pour le moment."}
+                </p>
+              ) : (
+                <div>
+                  {filtered.map((enrollment) => (
+                    <EnrollmentCard
+                      key={enrollment.id}
+                      enrollment={enrollment}
+                      review={reviewByCourse.get(enrollment.course.id)}
+                      onReview={setReviewing}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <h1 className="font-syne text-3xl font-bold text-white">Mes ebooks</h1>
+            <p className="mt-2 text-muted-foreground">Vos ebooks commandés et leur statut.</p>
+
+            <div className="mt-6">
+              {ebookOrders === null ? (
+                <p className="mt-6 text-sm text-muted-foreground">Chargement…</p>
+              ) : ebookOrders.length === 0 ? (
+                <p className="mt-6 text-sm text-muted-foreground">
+                  Vous n'avez pas encore commandé d'ebook. Découvrez-les sur la page d'accueil.
+                </p>
+              ) : (
+                <div>
+                  {ebookOrders.map((order) => (
+                    <EbookOrderCard key={order.id} order={order} accessToken={accessToken!} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {reviewing && accessToken && (

@@ -2,10 +2,13 @@ import TestimonialsSection from "@/components/TestimonialsSection";
 import TestimonialsGrid from "@/components/TestimonialsGrid";
 import FramedHero from "@/components/FramedHero";
 import CourseExplorer from "@/components/CourseExplorer";
+import EbooksSection from "@/components/EbooksSection";
 import Reveal from "@/components/Reveal";
 import {
   fetchApprovedTestimonials,
+  fetchEbooks,
   fetchHomeContent,
+  type Ebook,
   type HomeContent,
   type Testimonial,
 } from "@/lib/api";
@@ -51,6 +54,7 @@ const sampleTestimonials = [
 export default async function HomePage() {
   let home: HomeContent = { hero_video: null, hero_poster: null };
   let approved: Testimonial[] = [];
+  let ebooks: Ebook[] = [];
 
   // Le rendu de l'accueil ne doit jamais casser si l'API est momentanément
   // indisponible : on retombe alors sur les valeurs par défaut.
@@ -61,6 +65,11 @@ export default async function HomePage() {
   }
   try {
     approved = await fetchApprovedTestimonials();
+  } catch {
+    /* garde le tableau vide */
+  }
+  try {
+    ebooks = await fetchEbooks();
   } catch {
     /* garde le tableau vide */
   }
@@ -75,6 +84,12 @@ export default async function HomePage() {
       <section className="border-t border-white/5 px-6 py-20 lg:px-12">
         <CourseExplorer />
       </section>
+
+      {ebooks.length > 0 && (
+        <section className="border-t border-white/5 px-6 py-20 lg:px-12">
+          <EbooksSection ebooks={ebooks} />
+        </section>
+      )}
 
       <section className="border-t border-white/5 px-6 py-20 lg:px-12">
         <Reveal className="mx-auto max-w-3xl text-center">

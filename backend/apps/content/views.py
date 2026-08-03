@@ -1,3 +1,8 @@
+import os
+import secrets
+
+from django.http import FileResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -6,8 +11,10 @@ from rest_framework.views import APIView
 from apps.courses.models import Lesson
 from apps.enrollments.models import Enrollment, Progress
 
-from .models import HomeContent, Testimonial
+from .models import Ebook, EbookOrder, HomeContent, Testimonial
 from .serializers import (
+    EbookSerializer,
+    MyEbookOrderSerializer,
     MyTestimonialSerializer,
     TestimonialCreateSerializer,
     TestimonialPublicSerializer,
@@ -109,4 +116,92 @@ class CreateTestimonialView(APIView):
         )
         return Response(
             MyTestimonialSerializer(testimonial).data, status=status.HTTP_201_CREATED
+        )
+
+
+def _generate_order_reference():
+    """Référence courte et unique pour une commande (ex. EB-1A2B3C)."""
+    while True:
+        reference = "EB-" + secrets.token_hex(3).upper()
+        if not EbookOrder.objects.filter(reference=reference).exists():
+            return reference
+
+
+class EbookListView(generics.ListAPIView):
+    """Catalogue public des ebooks en vente (page d'accueil)."""
+
+    permission_classes = [AllowAny]
+    serializer_class = EbookSerializer
+
+    def get_queryset(self):
+        return Ebook.objects.filter(is_published=True)
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+
+class CreateEbookOrderView(APIView):
+    """Crée (ou récupère) la commande d'un ebook pour l'acheteur connecté et
+    renvoie les instructions de paiement manuel (WhatsApp / email)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        ebook = get_object_or_404(Ebook, pk=pk, is_published=True)
+        order, created = EbookOrder.objects.get_or_create(
+            user=request.user,
+            ebook=ebook,
+            defaults={"reference": _generate_order_reference()},
+        )
+        home = HomeContent.load()
+        return Response(
+            {
+                "reference": order.reference,
+                "status": order.status,
+                "ebook_title": ebook.title,
+                "price": str(ebook.price),
+                "whatsapp_number": home.whatsapp_number,
+                "contact_email": home.contact_email,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class MyEbookOrdersView(generics.ListAPIView):
+    """Les commandes d'ebooks de l'acheteur connecté (avec leur statut)."""
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = MyEbookOrderSerializer
+
+    def get_queryset(self):
+        return EbookOrder.objects.filter(user=self.request.user).select_related("ebook")
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+
+class EbookDownloadView(APIView):
+    """Téléchargement du fichier ebook — uniquement si l'achat est confirmé
+    (statut « payé »). Le fichier privé n'est jamais accessible autrement."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        ebook = get_object_or_404(Ebook, pk=pk)
+        is_paid = EbookOrder.objects.filter(
+            user=request.user, ebook=ebook, status=EbookOrder.Status.PAID
+        ).exists()
+        if not is_paid:
+            return Response(
+                {"detail": "Achat non confirmé : téléchargement indisponible."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not ebook.file:
+            return Response(
+                {"detail": "Fichier indisponible."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return FileResponse(
+            ebook.file.open("rb"),
+            as_attachment=True,
+            filename=os.path.basename(ebook.file.name),
         )

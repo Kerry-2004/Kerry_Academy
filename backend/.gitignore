@@ -4,5 +4,6 @@ __pycache__/
 *.pyc
 /staticfiles/
 /media/
+/private_media/
 venv/
 .pytest_cache/

@@ -1,8 +1,14 @@
 from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.courses.models import Course
+
+# Stockage PRIVÉ pour les fichiers d'ebooks : en dehors de MEDIA_ROOT, donc
+# jamais exposé par Nginx (aucune route /private_media/). Le téléchargement
+# passe obligatoirement par la vue protégée EbookDownloadView (achat vérifié).
+private_storage = FileSystemStorage(location=str(settings.PRIVATE_MEDIA_ROOT))
 
 
 class HomeContent(models.Model):
@@ -19,6 +25,13 @@ class HomeContent(models.Model):
     hero_poster = models.ImageField(
         "Image de couverture", upload_to="home/", blank=True, null=True
     )
+    # Contacts affichés à l'acheteur pour le paiement manuel des ebooks.
+    whatsapp_number = models.CharField(
+        "Numéro WhatsApp (format international, ex. +50912345678)",
+        max_length=30,
+        blank=True,
+    )
+    contact_email = models.EmailField("Email de contact", blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -78,3 +91,59 @@ class Testimonial(models.Model):
 
     def __str__(self):
         return f"{self.author_name} — {self.course.title} ({self.get_status_display()})"
+
+
+class Ebook(models.Model):
+    """Ebook vendu sur la page d'accueil.
+
+    La couverture est publique (affichée dans le catalogue) ; le fichier est
+    stocké dans un dossier privé et n'est servi qu'après confirmation de l'achat.
+    """
+
+    title = models.CharField("Titre", max_length=200)
+    slug = models.SlugField(max_length=220, unique=True)
+    author = models.CharField("Auteur", max_length=200, blank=True)
+    description = models.TextField("Description", blank=True)
+    cover = models.ImageField("Couverture", upload_to="ebooks/covers/", blank=True, null=True)
+    file = models.FileField(
+        "Fichier de l'ebook (privé — PDF/EPUB)",
+        upload_to="ebooks/files/",
+        storage=private_storage,
+    )
+    price = models.DecimalField("Prix", max_digits=10, decimal_places=2, default=0)
+    is_published = models.BooleanField("Publié", default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+
+class EbookOrder(models.Model):
+    """Commande d'ebook. Paiement manuel : la commande naît « en attente », et
+    l'admin la passe « payé » une fois le paiement reçu (WhatsApp/MonCash).
+    Le téléchargement n'est débloqué qu'au statut « payé »."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "En attente de paiement"
+        PAID = "paid", "Payé"
+        CANCELLED = "cancelled", "Annulé"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ebook_orders"
+    )
+    ebook = models.ForeignKey(Ebook, on_delete=models.CASCADE, related_name="orders")
+    reference = models.CharField(max_length=20, unique=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        # Une seule commande par utilisateur et par ebook.
+        unique_together = ["user", "ebook"]
+
+    def __str__(self):
+        return f"{self.reference} — {self.ebook.title} ({self.get_status_display()})"

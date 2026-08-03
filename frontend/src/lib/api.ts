@@ -68,6 +68,38 @@ export interface MyTestimonial {
   created_at: string;
 }
 
+export interface Ebook {
+  id: number;
+  title: string;
+  slug: string;
+  author: string;
+  description: string;
+  cover: string | null;
+  price: string;
+}
+
+export type EbookOrderStatus = "pending" | "paid" | "cancelled";
+
+export interface EbookOrderInfo {
+  reference: string;
+  status: EbookOrderStatus;
+  ebook_title: string;
+  price: string;
+  whatsapp_number: string;
+  contact_email: string;
+}
+
+export interface MyEbookOrder {
+  id: number;
+  reference: string;
+  status: EbookOrderStatus;
+  created_at: string;
+  ebook_id: number;
+  ebook_title: string;
+  ebook_author: string;
+  ebook_cover: string | null;
+}
+
 export interface QuizAnswer {
   id: number;
   text: string;
@@ -232,6 +264,49 @@ export function submitTestimonial(
     { method: "POST", body: JSON.stringify(data) },
     accessToken,
   );
+}
+
+export function fetchEbooks() {
+  return request<Ebook[]>("/api/content/ebooks/");
+}
+
+export function orderEbook(ebookId: number, accessToken: string) {
+  return request<EbookOrderInfo>(
+    `/api/content/ebooks/${ebookId}/order/`,
+    { method: "POST" },
+    accessToken,
+  );
+}
+
+export function fetchMyEbookOrders(accessToken: string) {
+  return request<MyEbookOrder[]>("/api/content/ebooks/orders/mine/", {}, accessToken);
+}
+
+// Téléchargement protégé : on récupère le fichier avec le token puis on
+// déclenche l'enregistrement côté navigateur (un simple <a href> ne peut pas
+// envoyer l'en-tête d'authentification).
+export async function downloadEbook(ebookId: number, fallbackName: string, accessToken: string) {
+  const response = await fetch(`${API_URL}/api/content/ebooks/${ebookId}/download/`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.detail ?? "Téléchargement impossible.");
+  }
+  const blob = await response.blob();
+  let filename = fallbackName;
+  const disposition = response.headers.get("Content-Disposition");
+  const match = disposition && disposition.match(/filename\*?=(?:UTF-8'')?"?([^"';]+)"?/i);
+  if (match) filename = decodeURIComponent(match[1]);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function fetchCourseProgress(slug: string, accessToken: string) {

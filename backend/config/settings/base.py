@@ -88,6 +88,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Fichiers privés (ebooks payants) : hors MEDIA_ROOT, donc non exposés par Nginx.
+# Servis uniquement via une vue Django qui vérifie l'achat.
+PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -233,6 +236,21 @@ UNFOLD = {
                         "title": "Témoignages",
                         "icon": "reviews",
                         "link": "/admin/content/testimonial/",
+                    },
+                ],
+            },
+            {
+                "title": "Boutique",
+                "items": [
+                    {
+                        "title": "Ebooks",
+                        "icon": "menu_book",
+                        "link": "/admin/content/ebook/",
+                    },
+                    {
+                        "title": "Commandes",
+                        "icon": "shopping_cart",
+                        "link": "/admin/content/ebookorder/",
                     },
                 ],
             },
