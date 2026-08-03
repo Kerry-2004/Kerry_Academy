@@ -18,7 +18,16 @@ class Category(models.Model):
 class Course(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True)
-    description = models.TextField(blank=True)
+    short_description = models.CharField(
+        "Description courte (carte)",
+        max_length=300,
+        blank=True,
+        help_text="Résumé affiché sur la carte de la formation (1 à 2 phrases).",
+    )
+    # Ancienne description en texte simple — conservée comme repli.
+    description = models.TextField("Ancienne description (texte simple)", blank=True)
+    # Présentation riche affichée sur la page dédiée de la formation.
+    long_description = CKEditor5Field("Présentation complète", blank=True, config_name="extends")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name="courses")
     instructor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="courses_taught"

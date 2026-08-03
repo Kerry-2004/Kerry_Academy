@@ -51,10 +51,24 @@ class CategoryAdmin(ModelAdmin):
 class CourseAdmin(ModelAdmin):
     list_display = ["title", "category", "instructor", "price", "is_published", "created_at"]
     list_filter = ["is_published", "category"]
-    search_fields = ["title", "description"]
+    search_fields = ["title", "short_description", "description"]
     prepopulated_fields = {"slug": ("title",)}
     autocomplete_fields = ["instructor"]
     inlines = [ModuleInline]
+    fieldsets = (
+        (None, {
+            "fields": ["title", "slug", "category", "instructor", "price", "thumbnail", "is_published"],
+        }),
+        ("Présentation", {
+            "fields": ["short_description", "long_description"],
+            "description": "La description courte s'affiche sur la carte ; la présentation "
+            "complète (éditeur riche) s'affiche sur la page dédiée de la formation.",
+        }),
+        ("Ancienne description (optionnel)", {
+            "fields": ["description"],
+            "classes": ["collapse"],
+        }),
+    )
 
     class Media:
         # Barre de progression lors de l'upload de la miniature.

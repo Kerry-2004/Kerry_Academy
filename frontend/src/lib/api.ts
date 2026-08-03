@@ -26,11 +26,30 @@ export interface Course {
   id: number;
   title: string;
   slug: string;
+  short_description: string;
   description: string;
   category: Category | null;
   instructor_name: string | null;
   price: string;
   thumbnail: string | null;
+}
+
+export interface CourseModulePreview {
+  id: number;
+  title: string;
+  order: number;
+  lessons: {
+    id: number;
+    title: string;
+    order: number;
+    content_type: string;
+    is_free_preview: boolean;
+  }[];
+}
+
+export interface CourseDetail extends Course {
+  long_description: string;
+  modules: CourseModulePreview[];
 }
 
 export type EnrollmentStatus = "pending_payment" | "active" | "completed";
@@ -236,7 +255,15 @@ export function fetchCategories() {
 }
 
 export function fetchCourse(slug: string) {
-  return request<Course>(`/api/courses/${slug}/`);
+  return request<CourseDetail>(`/api/courses/${slug}/`);
+}
+
+export function enrollCourse(slug: string, accessToken: string) {
+  return request<{ slug: string; status: EnrollmentStatus; created: boolean }>(
+    `/api/enrollments/${slug}/enroll/`,
+    { method: "POST" },
+    accessToken,
+  );
 }
 
 export function fetchMyEnrollments(accessToken: string) {

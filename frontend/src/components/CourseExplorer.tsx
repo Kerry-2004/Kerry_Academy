@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { IconArrowUpRight, IconBook2 } from "@tabler/icons-react";
 import Reveal from "@/components/Reveal";
@@ -88,16 +89,25 @@ export default function CourseExplorer() {
                 className="group flex flex-col rounded-3xl border border-white/5 bg-[#141414] p-6 transition-colors hover:border-gold-border/60"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <h3 className="font-syne text-xl font-bold leading-tight text-white">{course.title}</h3>
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold text-[#0d0d0d] transition-transform duration-300 group-hover:rotate-45">
+                  <Link
+                    href={`/courses/${course.slug}`}
+                    className="font-syne text-xl font-bold leading-tight text-white transition-colors hover:text-gold"
+                  >
+                    {course.title}
+                  </Link>
+                  <Link
+                    href={`/courses/${course.slug}`}
+                    aria-label={`Voir la formation ${course.title}`}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold text-[#0d0d0d] transition-transform duration-300 group-hover:rotate-45"
+                  >
                     <IconArrowUpRight className="h-5 w-5" />
-                  </span>
+                  </Link>
                 </div>
 
                 <div className="mt-4 h-px w-full bg-white/10" />
 
-                <p className="mt-4 text-sm text-muted-foreground">
-                  {course.description || "Détails de cette formation à venir."}
+                <p className="mt-4 line-clamp-2 text-sm text-muted-foreground">
+                  {course.short_description || course.description || "Détails de cette formation à venir."}
                 </p>
 
                 <div className="relative mt-6 aspect-video w-full overflow-hidden rounded-2xl bg-white/5">
@@ -114,6 +124,14 @@ export default function CourseExplorer() {
                     </div>
                   )}
                 </div>
+
+                <Link
+                  href={`/courses/${course.slug}`}
+                  className="mt-6 inline-flex items-center gap-1.5 self-start rounded-full border border-gold/40 px-5 py-2.5 text-xs font-bold text-gold transition hover:bg-gold/10"
+                >
+                  Lire plus
+                  <IconArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
               </motion.div>
             ))}
           </div>

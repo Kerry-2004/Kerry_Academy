@@ -58,6 +58,24 @@ class MyEnrollmentsView(generics.ListAPIView):
         )
 
 
+class EnrollView(APIView):
+    """Inscription immédiate à une formation publiée (bouton « S'inscrire »)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, slug):
+        course = get_object_or_404(Course, slug=slug, is_published=True)
+        enrollment, created = Enrollment.objects.get_or_create(
+            user=request.user,
+            course=course,
+            defaults={"status": Enrollment.Status.ACTIVE},
+        )
+        return Response(
+            {"slug": course.slug, "status": enrollment.status, "created": created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
 class CourseProgressView(APIView):
     permission_classes = [IsAuthenticated]
 

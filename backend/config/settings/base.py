@@ -106,6 +106,50 @@ CKEDITOR_5_CONFIGS = {
             "undo", "redo",
         ],
     },
+    # Éditeur riche complet pour la présentation des formations (page dédiée).
+    "extends": {
+        "blockToolbar": [
+            "paragraph", "heading1", "heading2", "heading3", "|",
+            "bulletedList", "numberedList", "|",
+            "blockQuote",
+        ],
+        "toolbar": [
+            "heading", "|",
+            "bold", "italic", "underline", "strikethrough", "|",
+            "fontSize", "fontColor", "fontBackgroundColor", "highlight", "|",
+            "alignment", "|",
+            "bulletedList", "numberedList", "todoList", "|",
+            "outdent", "indent", "|",
+            "link", "blockQuote", "insertTable", "imageUpload", "mediaEmbed",
+            "horizontalLine", "code", "codeBlock", "|",
+            "removeFormat", "sourceEditing", "|",
+            "undo", "redo",
+        ],
+        "image": {
+            "toolbar": [
+                "imageTextAlternative", "|",
+                "imageStyle:alignLeft", "imageStyle:alignCenter", "imageStyle:alignRight", "|",
+                "imageStyle:full", "imageStyle:side",
+            ],
+            "styles": ["full", "side", "alignLeft", "alignCenter", "alignRight"],
+        },
+        "table": {
+            "contentToolbar": [
+                "tableColumn", "tableRow", "mergeTableCells",
+                "tableProperties", "tableCellProperties",
+            ],
+        },
+        "heading": {
+            "options": [
+                {"model": "paragraph", "title": "Paragraphe", "class": "ck-heading_paragraph"},
+                {"model": "heading1", "view": "h1", "title": "Titre 1", "class": "ck-heading_heading1"},
+                {"model": "heading2", "view": "h2", "title": "Titre 2", "class": "ck-heading_heading2"},
+                {"model": "heading3", "view": "h3", "title": "Sous-titre", "class": "ck-heading_heading3"},
+            ],
+        },
+        # Stocke un <iframe> plutôt qu'un <oembed> → les vidéos s'affichent sur le site.
+        "mediaEmbed": {"previewsInData": True},
+    },
 }
 
 REST_FRAMEWORK = {
