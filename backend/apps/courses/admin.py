@@ -27,7 +27,10 @@ class LessonInline(StackedInline):
     inlines = [QuestionInline]
 
     class Media:
-        js = ["courses/admin/lesson_content_type.js"]
+        js = [
+            "courses/admin/lesson_content_type.js",
+            "content/admin/upload_progress.js",
+        ]
 
 
 class ModuleInline(TabularInline):
@@ -53,6 +56,10 @@ class CourseAdmin(ModelAdmin):
     autocomplete_fields = ["instructor"]
     inlines = [ModuleInline]
 
+    class Media:
+        # Barre de progression lors de l'upload de la miniature.
+        js = ["content/admin/upload_progress.js"]
+
 
 @admin.register(Module)
 class ModuleAdmin(ModelAdmin):
@@ -71,7 +78,10 @@ class LessonAdmin(ModelAdmin):
     inlines = [QuestionInline]
 
     class Media:
-        js = ["courses/admin/lesson_content_type.js"]
+        js = [
+            "courses/admin/lesson_content_type.js",
+            "content/admin/upload_progress.js",
+        ]
 
 
 @admin.register(Question)
