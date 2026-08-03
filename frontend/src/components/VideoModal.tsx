@@ -39,7 +39,15 @@ export default function VideoModal({
             </button>
 
             {videoSrc ? (
-              <video src={videoSrc} controls autoPlay className="aspect-video w-full" />
+              <video
+                src={videoSrc}
+                controls
+                autoPlay
+                controlsList="nodownload noremoteplayback noplaybackrate"
+                disablePictureInPicture
+                onContextMenu={(e) => e.preventDefault()}
+                className="aspect-video w-full"
+              />
             ) : (
               <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-[#141414] text-center">
                 <p className="font-syne text-lg font-semibold text-white">

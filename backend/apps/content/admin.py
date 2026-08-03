@@ -12,6 +12,10 @@ class HomeContentAdmin(ModelAdmin):
     fields = ["hero_video", "hero_poster", "updated_at"]
     readonly_fields = ["updated_at"]
 
+    class Media:
+        # Barre de progression en temps réel pendant l'upload de la vidéo.
+        js = ["content/admin/upload_progress.js"]
+
     def has_add_permission(self, request):
         # Une seule fiche possible : on masque « Ajouter » dès qu'elle existe.
         return not HomeContent.objects.exists()
