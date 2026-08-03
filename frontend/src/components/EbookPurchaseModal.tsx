@@ -14,7 +14,7 @@ export default function EbookPurchaseModal({
 }) {
   const alreadyOwned = order.status === "paid";
 
-  const message = `Bonjour, je souhaite acheter l'ebook « ${order.ebook_title} » (référence ${order.reference}). Comment procéder au paiement ?`;
+  const message = `Bonjour, je souhaite acheter « ${order.ebook_title} », voici mon code de commande : ${order.reference}`;
   const waNumber = order.whatsapp_number.replace(/[^0-9]/g, "");
   const waLink = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}` : null;
   const mailLink = order.contact_email
